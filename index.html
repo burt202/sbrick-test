@@ -1,0 +1,79 @@
+<html>
+  <script src="./queue.js"></script>
+
+  <body>
+    <button onClick="connect()">Connect</button>
+    <button onClick="changeDirection()">Change Direction</button>
+    <input type="range" onChange="changeSpeed(this)" min="0" max="255" value="0" step="10">
+  </body>
+
+<script>
+  let service
+
+  const UUID_SERVICE_REMOTECONTROL = "4dc591b0-857c-41de-b5f1-15abda665b0c"
+  const UUID_CHARACTERISTIC_REMOTECONTROL = "02b8cbcc-0e25-4bda-8790-a15f53e6010f"
+
+  const PORTS = [
+    { portId: 0x00, channelsId: [0x00, 0x01] },
+    { portId: 0x01, channelsId: [0x02, 0x03] },
+    { portId: 0x02, channelsId: [0x04, 0x05] },
+    { portId: 0x03, channelsId: [0x06, 0x07] },
+  ]
+
+  const CLOCKWISE = 0x00
+  const COUNTERCLOCKWISE = 0x01
+  const CMD_DRIVE = 0x01
+
+  let speed = 0
+  let direction = CLOCKWISE
+
+  async function connect() {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [
+        {namePrefix: "SBrick"}
+      ],
+      optionalServices: [UUID_SERVICE_REMOTECONTROL],
+    })
+
+    console.log("device", device)
+
+    const server = await device.gatt.connect()
+    console.log("server", server)
+
+    service = await server.getPrimaryService(UUID_SERVICE_REMOTECONTROL)
+    console.log("service", service)
+  }
+
+  async function changeSpeed (input) {
+    speed = input.value
+
+    const characteristic = await service.getCharacteristic(UUID_CHARACTERISTIC_REMOTECONTROL)
+
+    Queue.enqueue(() => characteristic.writeValue(
+      new Uint8Array([
+        CMD_DRIVE,
+        PORTS[1].portId,
+        direction,
+        speed
+      ])
+    ))
+  }
+
+  async function changeDirection () {
+    direction = direction === CLOCKWISE ? COUNTERCLOCKWISE : CLOCKWISE
+
+    const characteristic = await service.getCharacteristic(UUID_CHARACTERISTIC_REMOTECONTROL)
+
+    Queue.enqueue(() => characteristic.writeValue(
+      new Uint8Array([
+        CMD_DRIVE,
+        PORTS[1].portId,
+        direction,
+        speed
+      ])
+    ))
+  }
+
+</script>
+
+</html>
